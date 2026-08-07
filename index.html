@@ -125,7 +125,9 @@ html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidde
 .hlogout:hover{background:rgba(255,255,255,.3);}
 
 /* ================= SIDEBAR ================= */
-#sidebar{position:fixed;left:0;top:var(--hh);width:var(--sw);height:calc(100vh - var(--hh));background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;z-index:190;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--sh2);}
+#sidebar{position:fixed;left:0;top:var(--hh);width:var(--sw);height:calc(100vh - var(--hh));background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:190;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--sh2);}
+#sidebar::-webkit-scrollbar{width:9px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--brand);border-radius:5px;border:2px solid var(--bg2);}
 #sidebar.visible{transform:translateX(0);}
 .fpanel{flex-shrink:0;background:var(--bg3);border-bottom:2px solid var(--border);padding:10px 13px;}
 .fp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
@@ -147,7 +149,7 @@ html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidde
 .tbtn{flex:1;padding:10px 2px;background:none;border:none;border-bottom:3px solid transparent;color:var(--text3);font-size:10.5px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:var(--tr);}
 .tbtn i{font-size:14px;}
 .tbtn.on{color:var(--brand);border-bottom-color:var(--brand);background:var(--brand-bg);}
-.tcont{display:none;padding:13px;flex:1;}
+.tcont{display:none;padding:13px;flex:1 0 auto;}
 .tcont.on{display:block;animation:fadeIn .25s ease;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 

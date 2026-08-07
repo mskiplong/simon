@@ -125,8 +125,9 @@ html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidde
 .hlogout:hover{background:rgba(255,255,255,.3);}
 
 /* ================= SIDEBAR ================= */
-#sidebar{position:fixed;left:0;top:var(--hh);width:var(--sw);height:calc(100vh - var(--hh));background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:190;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--sh2);}
+#sidebar{position:fixed;left:0;top:var(--hh);bottom:0;width:var(--sw);background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:190;transform:translateX(-100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--sh2);}
 #sidebar::-webkit-scrollbar{width:9px;}
+#sidebar::-webkit-scrollbar-track{background:var(--bg3);}
 #sidebar::-webkit-scrollbar-thumb{background:var(--brand);border-radius:5px;border:2px solid var(--bg2);}
 #sidebar.visible{transform:translateX(0);}
 .fpanel{flex-shrink:0;background:var(--bg3);border-bottom:2px solid var(--border);padding:10px 13px;}
@@ -334,6 +335,16 @@ textarea.fc{resize:vertical;min-height:56px;}
   .huser span{display:none;}
   .pop{width:230px;}
   #legendBox{max-width:200px;}
+}
+
+/* ============ CETAK / PRINT (hanya aktif saat body.printing) ============ */
+#printRoot{display:none;position:fixed;left:-99999px;top:0;width:210mm;background:#fff;}
+@media print{
+  html,body{overflow:visible!important;height:auto!important;margin:0!important;background:#fff!important;}
+  body.printing #mapRoot,body.printing #cntBadge,body.printing #mapCtrl,body.printing #legendBox,
+  body.printing #loginOverlay,body.printing #hdr,body.printing #sidebar,
+  body.printing .toastwrap,body.printing .moverlay{display:none!important;}
+  body.printing #printRoot{display:block!important;position:static!important;left:0!important;top:0!important;}
 }
 </style>
 </head>
@@ -697,6 +708,7 @@ textarea.fc{resize:vertical;min-height:56px;}
 </div>
 
 <div class="toastwrap" id="toastwrap"></div>
+<div id="printRoot"></div>
 
 <script>
 /* ============================================================
@@ -1924,16 +1936,17 @@ function importJSON(ev){
    CETAK FORM — output persis seperti layout Excel/Juknis
 ============================================================ */
 function escP(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const PRINT_CSS="@page{size:A4 portrait;margin:12mm;}*{box-sizing:border-box;font-family:'Times New Roman',serif;color:#000;}body{margin:0;font-size:11px;line-height:1.4;}h1{font-size:14px;text-align:center;margin:0 0 2px;text-transform:uppercase;}h2{font-size:12px;text-align:center;margin:0 0 8px;}.sub{text-align:center;font-size:10px;margin-bottom:9px;font-style:italic;}table{border-collapse:collapse;width:100%;margin-bottom:8px;}th,td{border:1px solid #000;padding:4px 6px;vertical-align:top;}th{background:#e8e8e8;text-align:center;font-size:10px;}.kol-no{width:6%;text-align:center;}.kol-skor{width:7%;text-align:center;font-size:14px;font-family:Arial;}.meta .l{width:23%;background:#f4f4f4;font-weight:bold;}.secap{font-weight:bold;background:#f0f0f0;padding:5px 7px;border:1px solid #000;border-bottom:none;font-size:11px;text-transform:uppercase;}.hasil{margin-top:8px;font-size:12px;text-align:center;border:1.5px solid #000;padding:7px;}.hasil b{font-size:13px;}.ket{color:#666;font-size:9px;}.small{font-size:9px;color:#444;}.foot{margin-top:10px;font-size:9px;text-align:center;border-top:1px solid #000;padding-top:4px;color:#333;}.ttd{margin-top:26px;display:flex;justify-content:space-between;font-size:11px;}.ttd .b{text-align:center;width:38%;}.ttd .ln{margin-top:42px;border-top:1px solid #000;padding-top:2px;}";
+const PRINT_CSS="@page{size:A4 portrait;margin:12mm;}#printRoot,#printRoot *{box-sizing:border-box;}#printRoot{font-family:'Times New Roman',serif;color:#000;font-size:11px;line-height:1.4;}#printRoot h1{font-size:14px;text-align:center;margin:0 0 2px;text-transform:uppercase;}#printRoot h2{font-size:12px;text-align:center;margin:0 0 8px;}#printRoot .sub{text-align:center;font-size:10px;margin-bottom:9px;font-style:italic;}#printRoot table{border-collapse:collapse;width:100%;margin-bottom:8px;}#printRoot th,#printRoot td{border:1px solid #000;padding:4px 6px;vertical-align:top;}#printRoot th{background:#e8e8e8;text-align:center;font-size:10px;}#printRoot .kol-no{width:6%;text-align:center;}#printRoot .kol-skor{width:7%;text-align:center;font-size:14px;font-family:Arial;}#printRoot .meta .l{width:23%;background:#f4f4f4;font-weight:bold;}#printRoot .secap{font-weight:bold;background:#f0f0f0;padding:5px 7px;border:1px solid #000;border-bottom:none;font-size:11px;text-transform:uppercase;}#printRoot .hasil{margin-top:8px;font-size:12px;text-align:center;border:1.5px solid #000;padding:7px;}#printRoot .hasil b{font-size:13px;}#printRoot .ket{color:#666;font-size:9px;}#printRoot .small{font-size:9px;color:#444;}#printRoot .foot{margin-top:10px;font-size:9px;text-align:center;border-top:1px solid #000;padding-top:4px;color:#333;}#printRoot .ttd{margin-top:26px;display:flex;justify-content:space-between;font-size:11px;}#printRoot .ttd .b{text-align:center;width:38%;}";
 function printHTML(bodyHtml,title){
-  const iframe=document.createElement('iframe');
-  iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;';
-  document.body.appendChild(iframe);
-  const doc=iframe.contentWindow.document;
-  doc.open();
-  doc.write('<!doctype html><html><head><meta charset="utf-8"><title>'+escP(title||'Cetak')+'</title><style>'+PRINT_CSS+'</style></head><body>'+bodyHtml+'</body></html>');
-  doc.close();
-  setTimeout(function(){try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){console.warn(e);}setTimeout(function(){iframe.remove();},2500);},400);
+  const root=document.getElementById('printRoot');
+  root.innerHTML='<style>'+PRINT_CSS+'</style>'+bodyHtml;
+  document.title=title||'SIMON-MBG';
+  document.body.classList.add('printing');
+  let cleaned=false;
+  const done=function(){if(cleaned)return;cleaned=true;document.body.classList.remove('printing');root.innerHTML='';window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  try{window.focus();}catch(e){}
+  setTimeout(function(){try{window.print();}catch(e){console.warn('print',e);}setTimeout(done,1500);},180);
 }
 function printHeader(tgl,petugas,u,rows){
   const tr=rows.map(r=>`<tr>${r.map((c,i)=>`<td${i%2===0?' class="l"':''}>${escP(c)}</td>`).join('')}</tr>`).join('');
@@ -2042,5 +2055,5 @@ function cetakUnitForm(jenis,unitId){
   printHTML(body,(jenis==='KDMP'?'Kuesioner Monev KDMP':'Form Survei SPPG')+' (Kosong)');
 }
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a276c7243d3fa03c',t:'MTc4NjExMDkxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

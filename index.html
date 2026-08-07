@@ -517,10 +517,11 @@ textarea.fc{resize:vertical;min-height:56px;}
     </div>
     <button class="btn bp bblk" onclick="saveMonitoring()"><i class="fas fa-save"></i> Simpan Hasil Monitoring</button>
     <div class="frow" style="margin-top:6px">
-      <button class="btn bs bsm" onclick="cetakRekam('isi')" style="flex:1.2"><i class="fas fa-print"></i> Cetak Terisi (Excel)</button>
-      <button class="btn bx bsm" onclick="cetakRekam('kosong')" style="flex:1"><i class="fas fa-print"></i> Cetak Form Kosong</button>
+      <button class="btn bs bsm" onclick="cetakRekam('isi')" style="flex:1"><i class="fas fa-file-pdf"></i> PDF Terisi</button>
+      <button class="btn bs bsm" onclick="cetakRekam('kosong')" style="flex:1"><i class="fas fa-file-pdf"></i> PDF Kosong</button>
+      <button class="btn bg bsm" onclick="unduhFormExcelRekam()" style="flex:1"><i class="fas fa-file-excel"></i> Excel</button>
     </div>
-    <div class="fhint" style="margin-top:8px;text-align:center">Format cetak <b>mengikuti layout form Excel</b>. KDMP: hasil dari <b>skor rata-rata</b> (1–4). SPPG: saran hasil dari indikator SOP / uji sampel / keracunan / sampah.</div>
+    <div class="fhint" style="margin-top:8px;text-align:center"><b>Output = file PDF/Excel yang terunduh (bukan screenshot).</b> PDF Kosong = blanko untuk survei lapangan. Excel = form persis struktur di workspace. KDMP: hasil dari skor rata-rata (1–4).</div>
   </div>
 
   <!-- TAB: MASTER UNIT -->
@@ -1508,7 +1509,7 @@ function openDetail(id){
       <div style="display:flex;gap:4px;flex-wrap:wrap">${asp}</div>
       <div class="mon-t"><b>Temuan:</b> ${esc(m.temuan||'-')}</div>
       <div class="mon-t"><b>Rekomendasi:</b> ${esc(m.rekom||'-')}</div>
-      <div class="hc-actions" style="margin-top:7px"><button class="btn bd bsm" onclick="cetakMon('${m.id}')"><i class="fas fa-print"></i> Cetak Form (Excel)</button></div>
+      <div class="hc-actions" style="margin-top:7px"><button class="btn bd bsm" onclick="cetakMon('${m.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button></div>
     </div>`;
   }).join(''):'<div class="empty"><i class="fas fa-inbox"></i><p>Belum ada riwayat monitoring.<br>Klik tombol <b>Monitoring</b> di bawah.</p></div>';
   document.getElementById('dtBody').innerHTML=`
@@ -1643,7 +1644,7 @@ function renderHist(){
       <div class="hc-aspects">${monDetailAspects(m)}</div>
       ${m.temuan?`<div class="hc-temuan">🔎 ${esc(m.temuan)}</div>`:''}
       <div class="hc-actions" onclick="event.stopPropagation()">
-        <button class="btn bd bsm" onclick="cetakMon('${m.id}')"><i class="fas fa-print"></i> Cetak</button>
+        <button class="btn bd bsm" onclick="cetakMon('${m.id}')"><i class="fas fa-file-pdf"></i> PDF</button>
         <button class="btn bx bsm" onclick="openEditMon('${m.id}')"><i class="fas fa-edit"></i> Edit</button>
         ${CU&&CU.role==='admin'?`<button class="btn bd bsm" onclick="confirmDelMon('${m.id}')"><i class="fas fa-trash"></i> Hapus</button>`:''}
       </div>
@@ -2029,31 +2030,141 @@ function buildSppgPrintHtml(m,blank){
   h+=`<div class="foot">SIMON-MBG &mdash; Form Survei Penyaluran MBG (SPPG) &middot; dicetak ${new Date().toLocaleString('id-ID')}</div>`;
   return h;
 }
-function cetakRekam(mode){
-  if(!currentRekamJenis){toast('Pilih unit dulu untuk mencetak kuesioner','e');return;}
+function pdfSafe(s){s=String(s==null?'':s).replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019\u201A\u201B]/g,"'").replace(/[\u201C\u201D\u201E]/g,'"').replace(/\u2192/g,'->').replace(/\u2026/g,'...');s=stripEmoji(s);return s.replace(/[^A-Za-z0-9 \-_.,&()/:%+*=#@!?<>"']/g,'').replace(/\s+/g,' ').trim();}
+function formTitle(doc,text,y,PH){if(y>PH-26){doc.addPage();y=18;}doc.setFontSize(9.5);doc.setFont('helvetica','bold');doc.setTextColor(200,16,46);doc.text(pdfSafe(text),12,y);return y+4.5;}
+function recFormData(jenis,mode){
   const u=unitById(getVal('rUnit'));
-  let rec=null;
   if(mode==='isi'){
-    const form=currentRekamJenis==='KDMP'?collectKDMP():collectSPPG();
-    rec={unitId:u?u.id:'',tgl:getVal('rTgl'),petugas:getVal('rPetugas'),jenis:currentRekamJenis,form:form};
-    if(currentRekamJenis==='KDMP'&&form.terjawab===0){toast('Isi minimal satu butir sebelum mencetak','e');return;}
+    const form=jenis==='KDMP'?collectKDMP():collectSPPG();
+    if(jenis==='KDMP'&&form.terjawab===0){toast('Isi minimal satu butir sebelum mencetak','e');return null;}
+    return {unitId:u?u.id:'',tgl:getVal('rTgl'),petugas:getVal('rPetugas'),jenis:jenis,form:form};
   }
-  const kdmp=currentRekamJenis==='KDMP';
-  const body=kdmp?buildKdmpPrintHtml(rec,mode!=='isi'):buildSppgPrintHtml(rec,mode!=='isi');
-  printHTML(body,(kdmp?'Kuesioner Monev KDMP':'Form Survei SPPG')+(mode==='isi'?' (Terisi)':' (Kosong)'));
+  return {unitId:u?u.id:'',tgl:'',petugas:'',jenis:jenis,form:jenis==='KDMP'?{sections:[],compliance:[]}:{fields:{}}};
 }
-function cetakMon(id){
-  const m=DB.monitoring.find(x=>x.id===id);if(!m)return;
-  const u=unitById(m.unitId);const jenis=m.jenis||(u?u.jenis:'SPPG');
-  const body=jenis==='KDMP'?buildKdmpPrintHtml(m,false):buildSppgPrintHtml(m,false);
-  printHTML(body,jenis==='KDMP'?'Kuesioner Monev KDMP':'Form Survei SPPG');
+/* ===== Generator PDF form (jsPDF + autotable) — file asli, bukan screenshot ===== */
+function generateFormPdf(jenis,filled,rec){
+  const jsPDF=getJsPDF();if(!jsPDF)return;
+  const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  const PH=doc.internal.pageSize.getHeight();
+  const u=(rec&&rec.unitId)?unitById(rec.unitId):null;
+  const tgl=(rec&&rec.tgl)||'',petugas=(rec&&rec.petugas)||'',f=(rec&&rec.form)||{};
+  const isK=jenis==='KDMP';
+  let y=pdfHead(doc,isK?'KUESIONER MONEV KDMP/KKMP':'DAFTAR PERTANYAAN SURVEY PENYALURAN MBG',
+    isK?'Monev Koperasi Desa/Kelurahan Merah Putih (KDMP/KKMP) - Bangunan Permanen':'Survey Pemantauan Pelaksanaan Makan Bergizi Gratis - SPPG'+(filled?'':' (FORM KOSONG)'));
+  const idRows=isK
+    ? [['Nama KDMP/KKMP',u?u.nama:'','Tanggal Survei',tgl?fmtD(tgl):''],['Kabupaten/Kota',u?u.kab:'','Kecamatan',u?u.kec:''],['Desa/Kelurahan',u?u.desa:'','Petugas Survei',petugas]]
+    : [['Nama SPPG',u?u.nama:'','Tanggal Survei',tgl?fmtD(tgl):''],['Kabupaten/Kota',u?u.kab:'','Petugas Survei',petugas],['Responden',(f.fields&&f.fields.resp)||'','Jabatan',(f.fields&&f.fields.jab)||'']];
+  doc.autoTable({startY:y,
+    body:idRows.map(r=>[{content:pdfSafe(r[0]),styles:{fontStyle:'bold',fillColor:[244,244,244]}},{content:pdfSafe(r[1])},{content:pdfSafe(r[2]),styles:{fontStyle:'bold',fillColor:[244,244,244]}},{content:pdfSafe(r[3])}]).concat([[{content:'Alamat',styles:{fontStyle:'bold',fillColor:[244,244,244]}},{content:pdfSafe(u?u.alamat:''),colSpan:3}]]),
+    theme:'grid',styles:{fontSize:8.5,cellPadding:1.7,lineWidth:0.1,lineColor:[180,180,180]},columnStyles:{0:{cellWidth:38},2:{cellWidth:34}}});
+  y=doc.lastAutoTable.finalY+5;
+  if(isK){
+    y=formTitle(doc,'Petunjuk Skala Penilaian (beri tanda X pada kolom pilihan)',y,PH);
+    doc.autoTable({startY:y,head:[['Skor','Kriteria']],body:[['1','Sangat Tidak Baik / Sangat Tidak Setuju'],['2','Kurang Baik / Kurang Setuju'],['3','Baik'],['4','Sangat Baik / Sangat Setuju']],styles:{fontSize:8,cellPadding:1.5},headStyles:TBL_HEAD,columnStyles:{0:{cellWidth:18,halign:'center'}}});
+    y=doc.lastAutoTable.finalY+5;
+    const secs=f.sections||[];
+    FORM_KDMP.forEach((sec,si)=>{
+      const scores=(secs[si]&&secs[si].scores)||[];
+      y=formTitle(doc,sec.kode+'. '+sec.judul,y,PH);
+      doc.autoTable({startY:y,head:[['No','Pernyataan','1','2','3','4']],
+        body:sec.items.map((it,ii)=>{const sel=filled?(scores[ii]||0):0;return [String(ii+1),pdfSafe(it),sel===1?'X':'',sel===2?'X':'',sel===3?'X':'',sel===4?'X':''];}),
+        styles:{fontSize:7.3,cellPadding:1.4,lineWidth:0.1,lineColor:[180,180,180]},headStyles:TBL_HEAD,
+        columnStyles:{0:{cellWidth:8,halign:'center'},2:{cellWidth:9,halign:'center'},3:{cellWidth:9,halign:'center'},4:{cellWidth:9,halign:'center'},5:{cellWidth:9,halign:'center'}},
+        didParseCell:d=>{if(d.section==='body'&&d.column.index>=2&&d.cell.raw==='X'){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[254,242,242];d.cell.styles.textColor=[200,16,46];}}});
+      y=doc.lastAutoTable.finalY+4;
+    });
+    const comp=f.compliance||[];
+    y=formTitle(doc,'Kepatuhan Regulasi & Akuntabilitas (Ya/Tidak)',y,PH);
+    doc.autoTable({startY:y,head:[['No','Pernyataan Konfirmasi','Ya','Tidak']],
+      body:COMPLIANCE_KDMP.map((c,ci)=>{const sel=filled?comp[ci]:null;return [String(ci+1),pdfSafe(c),sel==='ya'?'X':'',sel==='tidak'?'X':''];}),
+      styles:{fontSize:7.3,cellPadding:1.4,lineWidth:0.1,lineColor:[180,180,180]},headStyles:TBL_HEAD,
+      columnStyles:{0:{cellWidth:8,halign:'center'},2:{cellWidth:16,halign:'center'},3:{cellWidth:16,halign:'center'}},
+      didParseCell:d=>{if(d.section==='body'&&d.column.index>=2&&d.cell.raw==='X'){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[236,253,245];d.cell.styles.textColor=[22,101,52];}}});
+    y=doc.lastAutoTable.finalY+5;
+    y=formTitle(doc,'Klasifikasi Nilai Rata-rata',y,PH);
+    doc.autoTable({startY:y,head:[['Nilai Rata-rata','Kategori']],body:[['3,26 - 4,00','Sangat Baik'],['2,51 - 3,25','Baik'],['1,76 - 2,50','Kurang Baik'],['1,00 - 1,75','Sangat Kurang']],styles:{fontSize:8,cellPadding:1.5,halign:'center'},headStyles:TBL_HEAD});
+    y=doc.lastAutoTable.finalY+5;
+    if(filled&&f.avg!=null){
+      doc.autoTable({startY:y,body:[[{content:'Nilai Rata-rata: '+f.avg,styles:{fontStyle:'bold',fontSize:10,halign:'center'}},{content:'Kategori: '+(f.kategori||''),styles:{fontStyle:'bold',fontSize:10,halign:'center'}},{content:'Status: '+(HASIL_META[f.hasil]?HASIL_META[f.hasil].label:''),styles:{fontStyle:'bold',fontSize:10,halign:'center',textColor:[200,16,46]}}]],theme:'grid',styles:{fillColor:[254,242,242]}});
+    }
+  }else{
+    const fields=(f.fields)||{};
+    FORM_SPPG.forEach(sec=>{
+      y=formTitle(doc,sec.judul,y,PH);
+      doc.autoTable({startY:y,head:[['No','Pertanyaan','Jawaban']],
+        body:sec.fields.map((fld,fi)=>{const ans=filled?(fields[fld.id]||''):'';return [String(fi+1),pdfSafe(fld.label)+(fld.unit?' ('+fld.unit+')':''),pdfSafe(ans)];}),
+        styles:{fontSize:7.5,cellPadding:1.5,lineWidth:0.1,lineColor:[180,180,180]},headStyles:TBL_HEAD,
+        columnStyles:{0:{cellWidth:8,halign:'center'},1:{cellWidth:80}},
+        didParseCell:d=>{if(d.section==='body'&&d.column.index===2&&d.cell.raw){d.cell.styles.fontStyle='bold';}}});
+      y=doc.lastAutoTable.finalY+4;
+    });
+    if(filled&&rec&&rec.hasil){y=formTitle(doc,'Status Monitoring',y,PH);doc.autoTable({startY:y,body:[[{content:'Status: '+(HASIL_META[rec.hasil]?HASIL_META[rec.hasil].label:rec.hasil),styles:{fontStyle:'bold',fontSize:10,halign:'center',textColor:[200,16,46]}}]],theme:'grid'});}
+  }
+  pdfFoot(doc);
+  doc.save('SIMON-MBG_Form_'+(isK?'KDMP':'SPPG')+'_'+(filled?'Terisi':'Kosong')+'_'+(tgl||new Date().toISOString().slice(0,10))+'.pdf');
+  toast('PDF form '+(isK?'KDMP':'SPPG')+' terunduh');
 }
-function cetakUnitForm(jenis,unitId){
-  const u=unitId?unitById(unitId):null;
-  const rec={unitId:unitId||'',tgl:'',petugas:'',jenis:jenis,form:jenis==='KDMP'?{sections:[],compliance:[]}:{fields:{}}};
-  const body=jenis==='KDMP'?buildKdmpPrintHtml(rec,true):buildSppgPrintHtml(rec,true);
-  printHTML(body,(jenis==='KDMP'?'Kuesioner Monev KDMP':'Form Survei SPPG')+' (Kosong)');
+/* ===== Generator Excel form (SheetJS) — file .xlsx persis struktur form ===== */
+function generateFormXlsx(jenis,filled,rec){
+  if(!window.XLSX){toast('Library Excel belum termuat','e');return;}
+  const u=(rec&&rec.unitId)?unitById(rec.unitId):null;
+  const tgl=(rec&&rec.tgl)||'',petugas=(rec&&rec.petugas)||'',f=(rec&&rec.form)||{};
+  const isK=jenis==='KDMP',aoa=[];
+  aoa.push([isK?'KUESIONER MONEV KDMP/KKMP':'DAFTAR PERTANYAAN SURVEY PENYALURAN MBG']);
+  aoa.push([isK?'Monev Koperasi Desa/Kelurahan Merah Putih - Bangunan Permanen':'Survey Pemantauan Pelaksanaan Makan Bergizi Gratis - SPPG']);
+  aoa.push([]);
+  aoa.push(['Nama',u?u.nama:'','Tanggal Survei',tgl?fmtD(tgl):'']);
+  aoa.push(['Kabupaten/Kota',u?u.kab:'','Petugas Survei',petugas]);
+  aoa.push(['Alamat',u?u.alamat:'','','','']);
+  aoa.push([]);
+  if(isK){
+    aoa.push(['SKALA: 1=Sangat Tidak Baik, 2=Kurang Baik, 3=Baik, 4=Sangat Baik (beri tanda X)','','','','','']);
+    aoa.push([]);
+    const secs=f.sections||[];
+    FORM_KDMP.forEach((sec,si)=>{
+      aoa.push([sec.kode+'. '+sec.judul,'','','','','']);
+      aoa.push(['No','Pernyataan','1','2','3','4']);
+      const scores=(secs[si]&&secs[si].scores)||[];
+      sec.items.forEach((it,ii)=>{const sel=filled?(scores[ii]||0):0;aoa.push([ii+1,it,sel===1?'X':'',sel===2?'X':'',sel===3?'X':'',sel===4?'X':'']);});
+      aoa.push([]);
+    });
+    aoa.push(['Kepatuhan & Akuntabilitas (Ya/Tidak)','','','']);
+    aoa.push(['No','Pernyataan','Ya','Tidak']);
+    const comp=f.compliance||[];
+    COMPLIANCE_KDMP.forEach((c,ci)=>{const sel=filled?comp[ci]:null;aoa.push([ci+1,c,sel==='ya'?'X':'',sel==='tidak'?'X':'']);});
+    aoa.push([]);
+    aoa.push(['Nilai Rata-rata','Kategori']);
+    aoa.push(['3,26-4,00','Sangat Baik'],['2,51-3,25','Baik'],['1,76-2,50','Kurang Baik'],['1,00-1,75','Sangat Kurang']);
+    if(filled&&f.avg!=null)aoa.push(['HASIL','Skor '+f.avg+' - '+f.kategori]);
+  }else{
+    const fields=(f.fields)||{};
+    FORM_SPPG.forEach(sec=>{
+      aoa.push([sec.judul,'','']);
+      aoa.push(['No','Pertanyaan','Jawaban']);
+      sec.fields.forEach((fld,fi)=>{const ans=filled?(fields[fld.id]||''):'';aoa.push([fi+1,fld.label+(fld.unit?' ('+fld.unit+')':''),ans]);});
+      aoa.push([]);
+    });
+    if(filled&&rec&&rec.hasil)aoa.push(['STATUS MONITORING',HASIL_META[rec.hasil]?HASIL_META[rec.hasil].label:rec.hasil,'']);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:6},{wch:58},{wch:12},{wch:12},{wch:12},{wch:12}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,isK?'Form KDMP':'Form SPPG');
+  XLSX.writeFile(wb,'SIMON-MBG_Form_'+(isK?'KDMP':'SPPG')+'_'+(filled?'Terisi':'Kosong')+'.xlsx');
+  toast('File Excel form '+(isK?'KDMP':'SPPG')+' terunduh');
 }
+function cetakRekam(mode){if(!currentRekamJenis){toast('Pilih unit dulu untuk mencetak form','e');return;}const rec=recFormData(currentRekamJenis,mode);if(!rec)return;generateFormPdf(currentRekamJenis,mode==='isi',rec);}
+function unduhFormExcelRekam(){
+  if(!currentRekamJenis){toast('Pilih unit dulu','e');return;}
+  let form,filled;
+  if(currentRekamJenis==='KDMP'){form=collectKDMP();filled=form.terjawab>0;}
+  else{form=collectSPPG();filled=Object.values(form.fields).some(v=>v&&String(v).trim());}
+  const u=unitById(getVal('rUnit'));
+  generateFormXlsx(currentRekamJenis,filled,{unitId:u?u.id:'',tgl:getVal('rTgl'),petugas:getVal('rPetugas'),jenis:currentRekamJenis,form});
+}
+function cetakMon(id){const m=DB.monitoring.find(x=>x.id===id);if(!m)return;const u=unitById(m.unitId);const jenis=m.jenis||(u?u.jenis:'SPPG');generateFormPdf(jenis,true,m);}
+function cetakUnitForm(jenis,unitId){generateFormPdf(jenis,false,{unitId:unitId||'',jenis:jenis,form:jenis==='KDMP'?{sections:[],compliance:[]}:{fields:{}}});}
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a276c7243d3fa03c',t:'MTc4NjExMDkxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a276ef2e2d45d47b',t:'MTc4NjExMjU1NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

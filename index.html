@@ -402,7 +402,7 @@ textarea.fc{resize:vertical;min-height:56px;}
   <div class="lbox">
     <div class="llogo">🍽️</div>
     <div class="ltitle">SIMON-MBG</div>
-    <div class="lsub">Sistem Monitoring Makan Bergizi Gratis<br><b style="color:var(--text2)">SPPG & KDMP Koperasi Desa Merah Putih</b><br>Wilayah Pekalongan · Batang · Pemalang</div>
+    <div class="lsub">Sistem Monitoring Makan Bergizi Gratis<br><b style="color:var(--text2)">SPPG & KDMP Koperasi Desa Merah Putih</b><br>Wilayah Pekalongan · Batang</div>
     <div class="linp"><i class="fas fa-user-tag"></i>
       <select id="lRole"><option value="">— Pilih Role —</option><option value="admin">⚙️ Admin / Koordinator</option><option value="petugas">🔍 Petugas Monitoring</option></select>
     </div>
@@ -423,6 +423,7 @@ textarea.fc{resize:vertical;min-height:56px;}
   <button class="hbtn" id="burger" onclick="toggleSB()" title="Menu"><i class="fas fa-bars"></i></button>
   <div class="hlogo"><span class="hchip">MBG</span>SIMON-MBG<small>Monitoring SPPG & KDMP Koperasi Desa Merah Putih</small></div>
   <div class="huser"><strong id="hName">—</strong><span id="hRole">—</span></div>
+  <button class="hbtn" id="usrBtn" onclick="openUsersModal()" title="Manajemen Pengguna" style="display:none"><i class="fas fa-users"></i></button>
   <button class="hbtn" onclick="toggleTheme()" id="themeBtn" title="Gelap/Terang"><i class="fas fa-moon"></i></button>
   <button class="hlogout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
 </div>
@@ -729,19 +730,42 @@ textarea.fc{resize:vertical;min-height:56px;}
 </div>
 
 <div class="toastwrap" id="toastwrap"></div>
+
+<!-- ================= MODAL: MANAJEMEN PENGGUNA (ADMIN) ================= -->
+<div id="mUsers" class="moverlay hidden">
+  <div class="mbox wide">
+    <div class="mhead"><h3><i class="fas fa-users"></i> Manajemen Pengguna</h3><button class="mclose" onclick="closeM('mUsers')">×</button></div>
+    <div class="mbody">
+      <input type="hidden" id="uId"/>
+      <div class="fg"><label class="fl">Nama Lengkap <span class="rq">*</span></label><input type="text" id="uNama" class="fc" placeholder="Nama petugas / admin"/></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Username <span class="rq">*</span></label><input type="text" id="uUser" class="fc" placeholder="login"/></div>
+        <div class="fg"><label class="fl">Password <span class="rq">*</span></label><input type="text" id="uPass" class="fc" placeholder="password"/></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Role <span class="rq">*</span></label>
+          <select id="uRole" class="fc"><option value="petugas">🔍 Petugas Monitoring</option><option value="admin">⚙️ Admin / Koordinator</option></select>
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-end"><button class="btn bp" onclick="saveUserForm()" style="width:100%"><i class="fas fa-save"></i> <span id="uBtnTxt">Tambah Pengguna</span></button></div>
+      </div>
+      <div class="sec-title" style="margin-top:8px"><i class="fas fa-list"></i> Daftar Pengguna (<span id="uCount">0</span>)</div>
+      <div id="userList"></div>
+    </div>
+    <div class="mfoot"><button class="btn bx" onclick="closeM('mUsers')">Tutup</button></div>
+  </div>
+</div>
 <div id="printRoot"></div>
 
 <script>
 /* ============================================================
    SIMON-MBG — Sistem Monitoring MBG : SPPG & KDMP
    Koperasi Desa Merah Putih
-   Wilayah: Kota/Kab. Pekalongan · Kab. Batang · Kab. Pemalang
+   Wilayah: Kota/Kab. Pekalongan · Kab. Batang
 ============================================================ */
 const KABUPATEN = {
   'Kota Pekalongan':['Pekalongan Barat','Pekalongan Timur','Pekalongan Utara','Pekalongan Selatan'],
   'Kab. Pekalongan':['Wiradesa','Buaran','Tirto','Kedungwuni','Kajen','Bojong','Siwalan','Doro','Karanganyar','Karangdadap'],
-  'Kab. Batang':['Batang','Bandar','Warungasem','Wonotunggal','Gringsing','Limpung','Subah','Tulis','Kandeman','Pecalungan','Reban','Bawang','Blado','Tersono'],
-  'Kab. Pemalang':['Pemalang','Comal','Ulujami','Petarukan','Taman','Ampelgading','Bantarbolang','Belik','Warungpring','Watukumpul','Randudongkal','Pulosari','Moga']
+  'Kab. Batang':['Batang','Bandar','Warungasem','Wonotunggal','Gringsing','Limpung','Subah','Tulis','Kandeman','Pecalungan','Reban','Bawang','Blado','Tersono']
 };
 const HASIL_META = {
   baik:{label:'Baik',color:'#16A34A',icon:'🟢'},
@@ -1111,18 +1135,13 @@ const DEF = {
     {id:'s5',jenis:'SPPG',nama:'SPPG Kajen 01',ref:'NIK-SPPG-3326-011',status:'aktif',kab:'Kab. Pekalongan',kec:'Kajen',desa:'Kajen',alamat:'Jl. KH Wahid Hasyim, Kawasan Pesantren',lat:-7.0240,lng:109.6561,pic:'Bp. Ahmad Ridwan',telp:'085842337799',yayasan:'Yayasan Berkah Umat',kapasitas:3000,sekolah:11,slhs:'ya',mulai:'2026-01-20',note:''},
     {id:'s6',jenis:'SPPG',nama:'SPPG Batang Kota 01',ref:'NIK-SPPG-3325-001',status:'aktif',kab:'Kab. Batang',kec:'Batang',desa:'Pasekaran',alamat:'Jl. Untung Suropati No. 20',lat:-6.9055,lng:109.7320,pic:'Ibu Sri Wahyuni',telp:'082133445566',yayasan:'Yayasan Nawacita Gizi',kapasitas:3500,sekolah:13,slhs:'ya',mulai:'2026-01-05',note:''},
     {id:'s7',jenis:'SPPG',nama:'SPPG Subah 01',ref:'NIK-SPPG-3325-003',status:'persiapan',kab:'Kab. Batang',kec:'Subah',desa:'Subah',alamat:'Jl. Pantura Subah KM 12',lat:-6.9610,lng:109.8780,pic:'Bp. Danu Prawira',telp:'081901442233',yayasan:'Yayasan Subah Peduli',kapasitas:2500,sekolah:7,slhs:'belum',mulai:'',note:'Menunggu pengadaan peralatan masak dari BGN.'},
-    {id:'s8',jenis:'SPPG',nama:'SPPG Comal 01',ref:'NIK-SPPG-3327-006',status:'aktif',kab:'Kab. Pemalang',kec:'Comal',desa:'Purwoharjo',alamat:'Jl. Gatot Subroto No. 5, Purwoharjo',lat:-6.8900,lng:109.5297,pic:'Ibu Endang Susilowati',telp:'085726118800',yayasan:'Yayasan Pesisir Gizi Sejahtera',kapasitas:3000,sekolah:10,slhs:'ya',mulai:'2026-01-26',note:''},
-    {id:'s9',jenis:'SPPG',nama:'SPPG Pemalang 01',ref:'NIK-SPPG-3327-001',status:'aktif',kab:'Kab. Pemalang',kec:'Pemalang',desa:'Kramat',alamat:'Jl. Perintis Kemerdekaan No. 15, Kramat',lat:-6.8915,lng:109.3820,pic:'Bp. Joko Hartanto',telp:'081228776655',yayasan:'Yayasan Gizi Pemalang Mandiri',kapasitas:3200,sekolah:11,slhs:'proses',mulai:'2026-02-02',note:''},
     {id:'s10',jenis:'SPPG',nama:'SPPG Gringsing 01',ref:'NIK-SPPG-3325-009',status:'rencana',kab:'Kab. Batang',kec:'Gringsing',desa:'Lebak',alamat:'Jl. Raya Gringsing (lokasi usulan)',lat:-6.9555,lng:110.0135,pic:'Calon pengelola',telp:'',yayasan:'Yayasan Laut Selatan Makmur',kapasitas:2500,sekolah:6,slhs:'belum',mulai:'',note:'Pengajuan ke BGN, survei lokasi sudah dilakukan.'},
     /* ------- KDMP ------- */
     {id:'k1',jenis:'KDMP',nama:'KDMP Tirto Sakti',ref:'NIK-51761-0021',status:'aktif',kab:'Kab. Pekalongan',kec:'Tirto',desa:'Tirto',alamat:'Jl. Raya Tirto No. 3, seberang balai desa',lat:-6.8731,lng:109.6532,pic:'Bp. Eko Purnomo (Ketua)',telp:'085211003344',anggota:214,peran:'Penyuplai Bahan Baku',usaha:'Warung sembako, agen beras & telur',note:''},
     {id:'k2',jenis:'KDMP',nama:'KDMP Kedungwuni Jaya',ref:'NIK-51761-0055',status:'aktif',kab:'Kab. Pekalongan',kec:'Kedungwuni',desa:'Kedungwuni',alamat:'Jl. Raya Kedungwuni',lat:-6.9710,lng:109.6520,pic:'Ibu Yuni Astuti (Ketua)',telp:'081544882211',anggota:180,peran:'Penyuplai Bahan Baku',usaha:'Agen ayam potong & sayur mayur',note:'Kemitraan suplai ke SPPG Kedungwuni & Kajen.'},
     {id:'k3',jenis:'KDMP',nama:'KDMP Kajen Mandiri',ref:'NIK-51761-0078',status:'persiapan',kab:'Kab. Pekalongan',kec:'Kajen',desa:'Nyamok',alamat:'Jl. Kyai Sahal, Nyamok',lat:-7.0225,lng:109.6600,pic:'Bp. Khoirul Anam',telp:'082137726677',anggota:96,peran:'Titik Distribusi MBG',usaha:'Simpan pinjam & logistik',note:'Struktur pengurus baru dilantik Juli 2026.'},
     {id:'k4',jenis:'KDMP',nama:'KDMP Bandar Bagun',ref:'NIK-51762-0013',status:'aktif',kab:'Kab. Batang',kec:'Bandar',desa:'Bandar',alamat:'Jl. Raya Bandar No. 7',lat:-6.9540,lng:109.7660,pic:'Bp. Slamet Widodo (Ketua)',telp:'085869334422',anggota:230,peran:'Penyuplai Bahan Baku',usaha:'Warung sembako, agen beras & ikan pindang',note:'Kandidat titik gudang bersama pesisir.'},
-    {id:'k5',jenis:'KDMP',nama:'KDMP Limpung Sejahtera',ref:'NIK-51762-0029',status:'rencana',kab:'Kab. Batang',kec:'Limpung',desa:'Kalisari',alamat:'Jl. Raya Limpung',lat:-7.0760,lng:110.0100,pic:'Bp. Aris Gunawan',telp:'',anggota:0,peran:'Belum Ditentukan',usaha:'Belum beroperasi',note:'Dalam proses badan hukum di Kemencoop.'},
-    {id:'k6',jenis:'KDMP',nama:'KDMP Petarukan Makmur',ref:'NIK-51763-0007',status:'aktif',kab:'Kab. Pemalang',kec:'Petarukan',desa:'Petarukan',alamat:'Jl. Raya Petarukan No. 2',lat:-6.8832,lng:109.4282,pic:'Ibu Dewi Anggraini (Ketua)',telp:'087713005667',anggota:312,peran:'Penyuplai Bahan Baku',usaha:'Gudang pangan, agen sayur & buah',note:'Suplai sayur ke SPPG Pemalang & Comal.'},
-    {id:'k7',jenis:'KDMP',nama:'KDMP Comal Bersatu',ref:'NIK-51763-0016',status:'aktif',kab:'Kab. Pemalang',kec:'Comal',desa:'Kauman',alamat:'Jl. Kauman No. 1, Comal',lat:-6.8905,lng:109.5310,pic:'Bp. Warsito (Ketua)',telp:'085225443310',anggota:265,peran:'Titik Distribusi MBG',usaha:'Warung sembako & logistik sepeda motor',note:''},
-    {id:'k8',jenis:'KDMP',nama:'KDMP Pemalang Kota Prima',ref:'NIK-51763-0002',status:'aktif',kab:'Kab. Pemalang',kec:'Pemalang',desa:'Bojongbata',alamat:'Jl. Jend. Sudirman No. 30',lat:-6.8920,lng:109.3835,pic:'Bp. Teguh Santoso (Ketua)',telp:'081234001122',anggota:401,peran:'Penyedia Logistik',usaha:'Gudang pendingin & warung pangan',note:'Gudang pendingin digunakan bersama 3 SPPG.'}
+    {id:'k5',jenis:'KDMP',nama:'KDMP Limpung Sejahtera',ref:'NIK-51762-0029',status:'rencana',kab:'Kab. Batang',kec:'Limpung',desa:'Kalisari',alamat:'Jl. Raya Limpung',lat:-7.0760,lng:110.0100,pic:'Bp. Aris Gunawan',telp:'',anggota:0,peran:'Belum Ditentukan',usaha:'Belum beroperasi',note:'Dalam proses badan hukum di Kemencoop.'}
   ],
   monitoring:[
     {id:'m1',unitId:'s1',tgl:'2026-08-04',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Dapur beroperasi normal, 3.500 porsi terkirim tepat waktu ke 12 sekolah.',rekom:'Pertahankan standar; evaluasi menu bulanan.'},
@@ -1131,14 +1150,9 @@ const DEF = {
     {id:'m4',unitId:'s3',tgl:'2026-08-01',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Bahan baku dari KDMP Tirto Sakti lengkap dan segar.',rekom:'Tetapkan kontrak suplai tertulis SPPG–KDMP.'},
     {id:'m5',unitId:'s5',tgl:'2026-07-29',petugas:'Bagas Pratama',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Gudang bahan kering tertata FIFO, stok aman 7 hari.',rekom:'-'},
     {id:'m6',unitId:'s6',tgl:'2026-08-03',petugas:'Bagas Pratama',kebersihan:'tidak',gizi:'perlu',distribusi:'baik',dok:'perlu',hasil:'kritis',temuan:'Ditemukan lalat pada area plating; menu tidak menampilkan data nilai gizi harian; laporan stok ke BGN telat 3 hari.',rekom:'Desinfeksi & pemasangan lampu UV perangkap serangga 24 jam; kirim ulang laporan 1x24 jam; pengawasan ulang minggu depan.'},
-    {id:'m7',unitId:'s8',tgl:'2026-08-04',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Uji coba menu nasi ayam & tumis buncis disukai siswa sasaran SDN Purwoharjo 01.',rekom:'-'},
-    {id:'m8',unitId:'s9',tgl:'2026-07-30',petugas:'Bagas Pratama',kebersihan:'baik',gizi:'perlu',distribusi:'baik',dok:'baik',hasil:'perbaikan',temuan:'Porsi buah turun di bawah standar 1/2 piring untuk 2 hari dalam seminggu.',rekom:'Sinkronkan pembelian buah musiman dengan KDMP Petarukan Makmur.'},
     {id:'m9',unitId:'k1',tgl:'2026-08-01',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Warung sembako aktif, harga bahan baku di bawah HET pasar untuk SPPG mitra.',rekom:'Jaga kualitas suplai telur; catat batch asal peternak.'},
     {id:'m10',unitId:'k2',tgl:'2026-07-28',petugas:'Bagas Pratama',kebersihan:'baik',gizi:'perlu',distribusi:'perlu',dok:'baik',hasil:'perbaikan',temuan:'Pengiriman ayam dua kali terlambat ke SPPG Kajen; rantai dingin belum ada di armada.',rekom:'Sediakan cool box; atur ulang jadwal pemetakan pukul 04.00 WIB.'},
     {id:'m11',unitId:'k4',tgl:'2026-07-31',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Pembukuan digital rapi; saldo cash opname sesuai laporan.',rekom:'-'},
-    {id:'m12',unitId:'k6',tgl:'2026-08-02',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Sayur mayur dari kelompok tani binaan segar, grading baik.',rekom:'Tambah mitra kelompak tani untuk skala 2 SPPG.'},
-    {id:'m13',unitId:'k7',tgl:'2026-08-03',petugas:'Bagas Pratama',kebersihan:'baik',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'baik',temuan:'Titik distribusi Kauman melayani 4 sekolah tepat waktu seharian.',rekom:'-'},
-    {id:'m14',unitId:'k8',tgl:'2026-07-27',petugas:'Bagas Pratama',kebersihan:'perlu',gizi:'baik',distribusi:'baik',dok:'baik',hasil:'perbaikan',temuan:'Gudang pendingin acapkali suhu > 8°C saat listrik padam, genset belum tersedia.',rekom:'Ajukan pengajuan genset backup via dana bergulir LPD.'},
     {id:'m15',unitId:'s6',tgl:'2026-07-25',petugas:'Ayu Lestari',kebersihan:'baik',gizi:'baik',distribusi:'perlu',dok:'baik',hasil:'perbaikan',temuan:'Laporan distribusi ke sekolah sasaran susulan karena keterlambatan kedatangan telur dari suplai luar.',rekom:'Alihkan suplai telur ke KDMP Bandar Bagun.'}
   ]
 };
@@ -1364,7 +1378,8 @@ function enterApp(animate){
   document.getElementById('mapCtrl').classList.add('visible');
   document.getElementById('legendBox').classList.add('visible');
   document.getElementById('cntBadge').classList.add('visible');
-  if(CU.role!=='admin'){document.getElementById('dtDelBtn').style.display='none';}
+  document.getElementById('usrBtn').style.display=(CU.role==='admin')?'flex':'none';
+  document.getElementById('dtDelBtn').style.display=(CU.role==='admin')?'':'none';
   renderAll();
   setTimeout(()=>map.invalidateSize(),400);
   if(animate)toast('👋 Selamat datang, '+CU.nama+'!');
@@ -1375,6 +1390,7 @@ function doLogout(){
   document.getElementById('hdr').classList.remove('visible');
   document.getElementById('sidebar').classList.remove('visible');
   ['mapCtrl','legendBox','cntBadge'].forEach(id=>document.getElementById(id).classList.remove('visible'));
+  document.getElementById('usrBtn').style.display='none';
   document.getElementById('lUser').value='';document.getElementById('lPass').value='';
 }
 function toggleTheme(){
@@ -1387,6 +1403,50 @@ function toggleTheme(){
 function applyThemeStorage(){
   const t=localStorage.getItem('simon_mbg_theme');
   if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('themeBtn').innerHTML='<i class="fas fa-sun"></i>';}
+}
+
+/* ============================================================
+   MANAJEMEN PENGGUNA (ADMIN)
+============================================================ */
+function openUsersModal(){resetUserForm();renderUsers();document.getElementById('mUsers').classList.remove('hidden');}
+function resetUserForm(){setVal('uId','');setVal('uNama','');setVal('uUser','');setVal('uPass','');setVal('uRole','petugas');document.getElementById('uBtnTxt').textContent='Tambah Pengguna';}
+function renderUsers(){
+  const el=document.getElementById('userList');
+  document.getElementById('uCount').textContent=DB.users.length;
+  el.innerHTML=DB.users.map(u=>{
+    const isAdmin=u.role==='admin';
+    const canDel=u.id!==(CU&&CU.id)&&!(isAdmin&&DB.users.filter(x=>x.role==='admin').length<=1);
+    const mine=u.id===(CU&&CU.id);
+    return `<div class="hcard" style="margin-bottom:7px">
+      <div class="hc-top">
+        <div class="kbadge" style="background:${isAdmin?'#7c3aed':'var(--sppg)'};box-shadow:none">${isAdmin?'A':'P'}</div>
+        <div class="hc-name">${esc(u.nama)} <small style="font-weight:600;color:var(--text3)">(@${esc(u.username)})${mine?' · Anda':''}</small></div>
+        <div class="kchip" style="background:${isAdmin?'#ede9fe':'#dbeafe'};color:${isAdmin?'#6d28d9':'#1e40af'}">${isAdmin?'Admin':'Petugas'}</div>
+      </div>
+      <div style="font-size:9.5px;color:var(--text3);margin-top:2px">🔑 Password: <b style="color:var(--text2)">${esc(u.password)}</b></div>
+      <div class="hc-actions" style="margin-top:6px">
+        <button class="btn bx bsm" onclick="editUserForm('${u.id}')"><i class="fas fa-edit"></i> Edit</button>
+        ${canDel?`<button class="btn bd bsm" onclick="delUser('${u.id}')"><i class="fas fa-trash"></i> Hapus</button>`:'<span class="fhint">(admin terakhir / akun sendiri)</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+function saveUserForm(){
+  const id=getVal('uId'),nama=getVal('uNama'),user=getVal('uUser'),pass=getVal('uPass'),role=getVal('uRole');
+  if(!nama||!user||!pass){toast('Lengkapi nama, username, dan password','e');return;}
+  if(DB.users.find(x=>x.username.toLowerCase()===user.toLowerCase()&&x.id!==id)){toast('Username sudah dipakai akun lain','e');return;}
+  if(id){const u=DB.users.find(x=>x.id===id);if(u){u.nama=nama;u.username=user;u.password=pass;u.role=role;toast('✅ Pengguna "'+nama+'" diperbarui');}}
+  else{DB.users.push({id:uid('usr'),nama,username:user,password:pass,role});toast('✅ Pengguna "'+nama+'" ditambahkan');}
+  saveDB();resetUserForm();renderUsers();
+}
+function editUserForm(id){const u=DB.users.find(x=>x.id===id);if(!u)return;setVal('uId',u.id);setVal('uNama',u.nama);setVal('uUser',u.username);setVal('uPass',u.password);setVal('uRole',u.role);document.getElementById('uBtnTxt').textContent='Simpan Perubahan';}
+function delUser(id){
+  const u=DB.users.find(x=>x.id===id);if(!u)return;
+  if(u.id===CU.id){toast('Tidak bisa menghapus akun sendiri','e');return;}
+  if(u.role==='admin'&&DB.users.filter(x=>x.role==='admin').length<=1){toast('Minimal harus ada 1 admin','e');return;}
+  confirmDo('Hapus pengguna "'+u.nama+'"? Login dengan akun ini tidak akan bisa lagi.',()=>{
+    DB.users=DB.users.filter(x=>x.id!==id);saveDB();renderUsers();toast('🗑️ Pengguna dihapus');
+  });
 }
 
 /* ============================================================
@@ -1845,7 +1905,7 @@ function pdfHead(doc,title,subtitle){
   doc.text('Sistem Monitoring MBG - SPPG & KDMP Koperasi Desa Merah Putih',12,14.5);
   doc.setFontSize(8);
   doc.text('Dicetak: '+new Date().toLocaleString('id-ID',{dateStyle:'full',timeStyle:'short'}),w-12,8.5,{align:'right'});
-  doc.text('Wilayah: Pekalongan - Batang - Pemalang',w-12,14.5,{align:'right'});
+  doc.text('Wilayah: Pekalongan - Batang',w-12,14.5,{align:'right'});
   let y=28;
   doc.setTextColor(30,30,30);doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text(title,12,y);y+=5.5;
